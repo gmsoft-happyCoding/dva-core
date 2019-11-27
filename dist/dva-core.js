@@ -4,7 +4,7 @@ typeof define === 'function' && define.amd ? define(['exports', 'redux', 'redux-
 (factory((global.DvaCore = {}),global.Redux,global.ReduxSaga));
 }(this, (function (exports,redux,createSagaMiddleware) { 'use strict';
 
-createSagaMiddleware = createSagaMiddleware && createSagaMiddleware.hasOwnProperty('default') ? createSagaMiddleware['default'] : createSagaMiddleware;
+var createSagaMiddleware__default = 'default' in createSagaMiddleware ? createSagaMiddleware['default'] : createSagaMiddleware;
 
 function _defineProperty(obj, key, value) {
   if (key in obj) {
@@ -121,20 +121,28 @@ var isPlainObject = function isPlainObject(o) {
 
 var isArray = Array.isArray.bind(Array);
 var isFunction = function isFunction(o) {
-  return typeof o === "function";
+  return typeof o === 'function';
 };
 var returnSelf = function returnSelf(m) {
   return m;
-}; // avoid es6 array.prototype.findIndex polyfill
-
+};
 var noop = function noop() {};
 var findIndex = function findIndex(array, predicate) {
-  for (var i = 0, length = array.length; i < length; i++) {
+  for (var i = 0, length = array.length; i < length; i += 1) {
     if (predicate(array[i], i)) return i;
   }
 
   return -1;
 };
+
+var utils = /*#__PURE__*/Object.freeze({
+isPlainObject: isPlainObject,
+isArray: isArray,
+isFunction: isFunction,
+returnSelf: returnSelf,
+noop: noop,
+findIndex: findIndex
+});
 
 function checkModel(model, existModels) {
   var namespace = model.namespace,
@@ -443,11 +451,14 @@ function createStore (_ref) {
       _ref$createOpts$setup = _ref.createOpts.setupMiddlewares,
       setupMiddlewares = _ref$createOpts$setup === void 0 ? returnSelf : _ref$createOpts$setup;
   // extra enhancers
-  var extraEnhancers = plugin.get("extraEnhancers");
+  var extraEnhancers = plugin.get('extraEnhancers');
   invariant_1(isArray(extraEnhancers), "[app.start] extraEnhancers should be array, but got " + typeof extraEnhancers);
-  var extraMiddlewares = plugin.get("onAction");
+  var extraMiddlewares = plugin.get('onAction');
   var middlewares = setupMiddlewares([promiseMiddleware, sagaMiddleware].concat(flatten(extraMiddlewares)));
-  var composeEnhancers = window_1.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ ? window_1.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ : redux.compose;
+  var composeEnhancers = window_1.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ ? window_1.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__({
+    trace: true,
+    maxAge: 30
+  }) : redux.compose;
   var enhancers = [redux.applyMiddleware.apply(void 0, middlewares)].concat(extraEnhancers);
   return redux.createStore(reducers, initialState, composeEnhancers.apply(void 0, enhancers));
 }
@@ -1213,710 +1224,6 @@ if (hadRuntime) {
 
 var regenerator = runtimeModule;
 
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
-
-var sym = function sym(id) {
-  return '@@redux-saga/' + id;
-};
-
-var TASK = /*#__PURE__*/sym('TASK');
-var HELPER = /*#__PURE__*/sym('HELPER');
-var CANCEL = /*#__PURE__*/sym('CANCEL_PROMISE');
-var SELF_CANCELLATION = /*#__PURE__*/sym('SELF_CANCELLATION');
-var konst = function konst(v) {
-  return function () {
-    return v;
-  };
-};
-var kTrue = /*#__PURE__*/konst(true);
-var noop$1 = function noop() {};
-var ident = function ident(v) {
-  return v;
-};
-
-function check(value, predicate, error) {
-  if (!predicate(value)) {
-    log('error', 'uncaught at check', error);
-    throw new Error(error);
-  }
-}
-
-var hasOwnProperty = Object.prototype.hasOwnProperty;
-function hasOwn(object, property) {
-  return is.notUndef(object) && hasOwnProperty.call(object, property);
-}
-
-var is = {
-  undef: function undef(v) {
-    return v === null || v === undefined;
-  },
-  notUndef: function notUndef(v) {
-    return v !== null && v !== undefined;
-  },
-  func: function func(f) {
-    return typeof f === 'function';
-  },
-  number: function number(n) {
-    return typeof n === 'number';
-  },
-  string: function string(s) {
-    return typeof s === 'string';
-  },
-  array: Array.isArray,
-  object: function object(obj) {
-    return obj && !is.array(obj) && (typeof obj === 'undefined' ? 'undefined' : _typeof(obj)) === 'object';
-  },
-  promise: function promise(p) {
-    return p && is.func(p.then);
-  },
-  iterator: function iterator(it) {
-    return it && is.func(it.next) && is.func(it.throw);
-  },
-  iterable: function iterable(it) {
-    return it && is.func(Symbol) ? is.func(it[Symbol.iterator]) : is.array(it);
-  },
-  task: function task(t) {
-    return t && t[TASK];
-  },
-  observable: function observable(ob) {
-    return ob && is.func(ob.subscribe);
-  },
-  buffer: function buffer(buf) {
-    return buf && is.func(buf.isEmpty) && is.func(buf.take) && is.func(buf.put);
-  },
-  pattern: function pattern(pat) {
-    return pat && (is.string(pat) || (typeof pat === 'undefined' ? 'undefined' : _typeof(pat)) === 'symbol' || is.func(pat) || is.array(pat));
-  },
-  channel: function channel(ch) {
-    return ch && is.func(ch.take) && is.func(ch.close);
-  },
-  helper: function helper(it) {
-    return it && it[HELPER];
-  },
-  stringableFunc: function stringableFunc(f) {
-    return is.func(f) && hasOwn(f, 'toString');
-  }
-};
-
-function delay(ms) {
-  var val = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
-
-  var timeoutId = void 0;
-  var promise = new Promise(function (resolve) {
-    timeoutId = setTimeout(function () {
-      return resolve(val);
-    }, ms);
-  });
-
-  promise[CANCEL] = function () {
-    return clearTimeout(timeoutId);
-  };
-
-  return promise;
-}
-
-var kThrow = function kThrow(err) {
-  throw err;
-};
-var kReturn = function kReturn(value) {
-  return { value: value, done: true };
-};
-function makeIterator(next) {
-  var thro = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : kThrow;
-  var name = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : '';
-  var isHelper = arguments[3];
-
-  var iterator = { name: name, next: next, throw: thro, return: kReturn };
-
-  if (isHelper) {
-    iterator[HELPER] = true;
-  }
-  if (typeof Symbol !== 'undefined') {
-    iterator[Symbol.iterator] = function () {
-      return iterator;
-    };
-  }
-  return iterator;
-}
-
-/**
-  Print error in a useful way whether in a browser environment
-  (with expandable error stack traces), or in a node.js environment
-  (text-only log output)
- **/
-function log(level, message) {
-  var error = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : '';
-
-  /*eslint-disable no-console*/
-  if (typeof window === 'undefined') {
-    console.log('redux-saga ' + level + ': ' + message + '\n' + (error && error.stack || error));
-  } else {
-    console[level](message, error);
-  }
-}
-
-function deprecate(fn, deprecationWarning) {
-  return function () {
-    log('warn', deprecationWarning);
-    return fn.apply(undefined, arguments);
-  };
-}
-
-var updateIncentive = function updateIncentive(deprecated, preferred) {
-  return deprecated + ' has been deprecated in favor of ' + preferred + ', please update your code';
-};
-
-var createSetContextWarning = function createSetContextWarning(ctx, props) {
-  return (ctx ? ctx + '.' : '') + 'setContext(props): argument ' + props + ' is not a plain object';
-};
-
-var IO = /*#__PURE__*/sym('IO');
-var TAKE = 'TAKE';
-var PUT = 'PUT';
-var ALL = 'ALL';
-var RACE = 'RACE';
-var CALL = 'CALL';
-var CPS = 'CPS';
-var FORK = 'FORK';
-var JOIN = 'JOIN';
-var CANCEL$1 = 'CANCEL';
-var SELECT = 'SELECT';
-var ACTION_CHANNEL = 'ACTION_CHANNEL';
-var CANCELLED = 'CANCELLED';
-var FLUSH = 'FLUSH';
-var GET_CONTEXT = 'GET_CONTEXT';
-var SET_CONTEXT = 'SET_CONTEXT';
-
-var TEST_HINT = '\n(HINT: if you are getting this errors in tests, consider using createMockTask from redux-saga/utils)';
-
-var effect = function effect(type, payload) {
-  var _ref;
-
-  return _ref = {}, _ref[IO] = true, _ref[type] = payload, _ref;
-};
-
-var detach = function detach(eff) {
-  check(asEffect.fork(eff), is.object, 'detach(eff): argument must be a fork effect');
-  eff[FORK].detached = true;
-  return eff;
-};
-
-function take() {
-  var patternOrChannel = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : '*';
-
-  if (arguments.length) {
-    check(arguments[0], is.notUndef, 'take(patternOrChannel): patternOrChannel is undefined');
-  }
-  if (is.pattern(patternOrChannel)) {
-    return effect(TAKE, { pattern: patternOrChannel });
-  }
-  if (is.channel(patternOrChannel)) {
-    return effect(TAKE, { channel: patternOrChannel });
-  }
-  throw new Error('take(patternOrChannel): argument ' + String(patternOrChannel) + ' is not valid channel or a valid pattern');
-}
-
-take.maybe = function () {
-  var eff = take.apply(undefined, arguments);
-  eff[TAKE].maybe = true;
-  return eff;
-};
-
-var takem = /*#__PURE__*/deprecate(take.maybe, /*#__PURE__*/updateIncentive('takem', 'take.maybe'));
-
-function put(channel, action) {
-  if (arguments.length > 1) {
-    check(channel, is.notUndef, 'put(channel, action): argument channel is undefined');
-    check(channel, is.channel, 'put(channel, action): argument ' + channel + ' is not a valid channel');
-    check(action, is.notUndef, 'put(channel, action): argument action is undefined');
-  } else {
-    check(channel, is.notUndef, 'put(action): argument action is undefined');
-    action = channel;
-    channel = null;
-  }
-  return effect(PUT, { channel: channel, action: action });
-}
-
-put.resolve = function () {
-  var eff = put.apply(undefined, arguments);
-  eff[PUT].resolve = true;
-  return eff;
-};
-
-put.sync = /*#__PURE__*/deprecate(put.resolve, /*#__PURE__*/updateIncentive('put.sync', 'put.resolve'));
-
-function all(effects) {
-  return effect(ALL, effects);
-}
-
-function race(effects) {
-  return effect(RACE, effects);
-}
-
-function getFnCallDesc(meth, fn, args) {
-  check(fn, is.notUndef, meth + ': argument fn is undefined');
-
-  var context = null;
-  if (is.array(fn)) {
-    var _fn = fn;
-    context = _fn[0];
-    fn = _fn[1];
-  } else if (fn.fn) {
-    var _fn2 = fn;
-    context = _fn2.context;
-    fn = _fn2.fn;
-  }
-  if (context && is.string(fn) && is.func(context[fn])) {
-    fn = context[fn];
-  }
-  check(fn, is.func, meth + ': argument ' + fn + ' is not a function');
-
-  return { context: context, fn: fn, args: args };
-}
-
-function call(fn) {
-  for (var _len = arguments.length, args = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
-    args[_key - 1] = arguments[_key];
-  }
-
-  return effect(CALL, getFnCallDesc('call', fn, args));
-}
-
-function apply(context, fn) {
-  var args = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : [];
-
-  return effect(CALL, getFnCallDesc('apply', { context: context, fn: fn }, args));
-}
-
-function cps(fn) {
-  for (var _len2 = arguments.length, args = Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
-    args[_key2 - 1] = arguments[_key2];
-  }
-
-  return effect(CPS, getFnCallDesc('cps', fn, args));
-}
-
-function fork(fn) {
-  for (var _len3 = arguments.length, args = Array(_len3 > 1 ? _len3 - 1 : 0), _key3 = 1; _key3 < _len3; _key3++) {
-    args[_key3 - 1] = arguments[_key3];
-  }
-
-  return effect(FORK, getFnCallDesc('fork', fn, args));
-}
-
-function spawn(fn) {
-  for (var _len4 = arguments.length, args = Array(_len4 > 1 ? _len4 - 1 : 0), _key4 = 1; _key4 < _len4; _key4++) {
-    args[_key4 - 1] = arguments[_key4];
-  }
-
-  return detach(fork.apply(undefined, [fn].concat(args)));
-}
-
-function join() {
-  for (var _len5 = arguments.length, tasks = Array(_len5), _key5 = 0; _key5 < _len5; _key5++) {
-    tasks[_key5] = arguments[_key5];
-  }
-
-  if (tasks.length > 1) {
-    return all(tasks.map(function (t) {
-      return join(t);
-    }));
-  }
-  var task = tasks[0];
-  check(task, is.notUndef, 'join(task): argument task is undefined');
-  check(task, is.task, 'join(task): argument ' + task + ' is not a valid Task object ' + TEST_HINT);
-  return effect(JOIN, task);
-}
-
-function cancel() {
-  for (var _len6 = arguments.length, tasks = Array(_len6), _key6 = 0; _key6 < _len6; _key6++) {
-    tasks[_key6] = arguments[_key6];
-  }
-
-  if (tasks.length > 1) {
-    return all(tasks.map(function (t) {
-      return cancel(t);
-    }));
-  }
-  var task = tasks[0];
-  if (tasks.length === 1) {
-    check(task, is.notUndef, 'cancel(task): argument task is undefined');
-    check(task, is.task, 'cancel(task): argument ' + task + ' is not a valid Task object ' + TEST_HINT);
-  }
-  return effect(CANCEL$1, task || SELF_CANCELLATION);
-}
-
-function select(selector) {
-  for (var _len7 = arguments.length, args = Array(_len7 > 1 ? _len7 - 1 : 0), _key7 = 1; _key7 < _len7; _key7++) {
-    args[_key7 - 1] = arguments[_key7];
-  }
-
-  if (arguments.length === 0) {
-    selector = ident;
-  } else {
-    check(selector, is.notUndef, 'select(selector,[...]): argument selector is undefined');
-    check(selector, is.func, 'select(selector,[...]): argument ' + selector + ' is not a function');
-  }
-  return effect(SELECT, { selector: selector, args: args });
-}
-
-/**
-  channel(pattern, [buffer])    => creates an event channel for store actions
-**/
-function actionChannel(pattern, buffer) {
-  check(pattern, is.notUndef, 'actionChannel(pattern,...): argument pattern is undefined');
-  if (arguments.length > 1) {
-    check(buffer, is.notUndef, 'actionChannel(pattern, buffer): argument buffer is undefined');
-    check(buffer, is.buffer, 'actionChannel(pattern, buffer): argument ' + buffer + ' is not a valid buffer');
-  }
-  return effect(ACTION_CHANNEL, { pattern: pattern, buffer: buffer });
-}
-
-function cancelled() {
-  return effect(CANCELLED, {});
-}
-
-function flush(channel) {
-  check(channel, is.channel, 'flush(channel): argument ' + channel + ' is not valid channel');
-  return effect(FLUSH, channel);
-}
-
-function getContext(prop) {
-  check(prop, is.string, 'getContext(prop): argument ' + prop + ' is not a string');
-  return effect(GET_CONTEXT, prop);
-}
-
-function setContext(props) {
-  check(props, is.object, createSetContextWarning(null, props));
-  return effect(SET_CONTEXT, props);
-}
-
-var createAsEffectType = function createAsEffectType(type) {
-  return function (effect) {
-    return effect && effect[IO] && effect[type];
-  };
-};
-
-var asEffect = {
-  take: /*#__PURE__*/createAsEffectType(TAKE),
-  put: /*#__PURE__*/createAsEffectType(PUT),
-  all: /*#__PURE__*/createAsEffectType(ALL),
-  race: /*#__PURE__*/createAsEffectType(RACE),
-  call: /*#__PURE__*/createAsEffectType(CALL),
-  cps: /*#__PURE__*/createAsEffectType(CPS),
-  fork: /*#__PURE__*/createAsEffectType(FORK),
-  join: /*#__PURE__*/createAsEffectType(JOIN),
-  cancel: /*#__PURE__*/createAsEffectType(CANCEL$1),
-  select: /*#__PURE__*/createAsEffectType(SELECT),
-  actionChannel: /*#__PURE__*/createAsEffectType(ACTION_CHANNEL),
-  cancelled: /*#__PURE__*/createAsEffectType(CANCELLED),
-  flush: /*#__PURE__*/createAsEffectType(FLUSH),
-  getContext: /*#__PURE__*/createAsEffectType(GET_CONTEXT),
-  setContext: /*#__PURE__*/createAsEffectType(SET_CONTEXT)
-};
-
-var done = { done: true, value: undefined };
-var qEnd = {};
-
-function safeName(patternOrChannel) {
-  if (is.channel(patternOrChannel)) {
-    return 'channel';
-  } else if (Array.isArray(patternOrChannel)) {
-    return String(patternOrChannel.map(function (entry) {
-      return String(entry);
-    }));
-  } else {
-    return String(patternOrChannel);
-  }
-}
-
-function fsmIterator(fsm, q0) {
-  var name = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 'iterator';
-
-  var updateState = void 0,
-      qNext = q0;
-
-  function next(arg, error) {
-    if (qNext === qEnd) {
-      return done;
-    }
-
-    if (error) {
-      qNext = qEnd;
-      throw error;
-    } else {
-      updateState && updateState(arg);
-
-      var _fsm$qNext = fsm[qNext](),
-          q = _fsm$qNext[0],
-          output = _fsm$qNext[1],
-          _updateState = _fsm$qNext[2];
-
-      qNext = q;
-      updateState = _updateState;
-      return qNext === qEnd ? done : output;
-    }
-  }
-
-  return makeIterator(next, function (error) {
-    return next(null, error);
-  }, name, true);
-}
-
-var BUFFER_OVERFLOW = "Channel's Buffer overflow!";
-
-var ON_OVERFLOW_THROW = 1;
-var ON_OVERFLOW_DROP = 2;
-var ON_OVERFLOW_SLIDE = 3;
-var ON_OVERFLOW_EXPAND = 4;
-
-var zeroBuffer = { isEmpty: kTrue, put: noop$1, take: noop$1 };
-
-function ringBuffer() {
-  var limit = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 10;
-  var overflowAction = arguments[1];
-
-  var arr = new Array(limit);
-  var length = 0;
-  var pushIndex = 0;
-  var popIndex = 0;
-
-  var push = function push(it) {
-    arr[pushIndex] = it;
-    pushIndex = (pushIndex + 1) % limit;
-    length++;
-  };
-
-  var take = function take() {
-    if (length != 0) {
-      var it = arr[popIndex];
-      arr[popIndex] = null;
-      length--;
-      popIndex = (popIndex + 1) % limit;
-      return it;
-    }
-  };
-
-  var flush = function flush() {
-    var items = [];
-    while (length) {
-      items.push(take());
-    }
-    return items;
-  };
-
-  return {
-    isEmpty: function isEmpty() {
-      return length == 0;
-    },
-    put: function put(it) {
-      if (length < limit) {
-        push(it);
-      } else {
-        var doubledLimit = void 0;
-        switch (overflowAction) {
-          case ON_OVERFLOW_THROW:
-            throw new Error(BUFFER_OVERFLOW);
-          case ON_OVERFLOW_SLIDE:
-            arr[pushIndex] = it;
-            pushIndex = (pushIndex + 1) % limit;
-            popIndex = pushIndex;
-            break;
-          case ON_OVERFLOW_EXPAND:
-            doubledLimit = 2 * limit;
-
-            arr = flush();
-
-            length = arr.length;
-            pushIndex = arr.length;
-            popIndex = 0;
-
-            arr.length = doubledLimit;
-            limit = doubledLimit;
-
-            push(it);
-            break;
-          default:
-          // DROP
-        }
-      }
-    },
-    take: take,
-    flush: flush
-  };
-}
-
-var buffers = {
-  none: function none() {
-    return zeroBuffer;
-  },
-  fixed: function fixed(limit) {
-    return ringBuffer(limit, ON_OVERFLOW_THROW);
-  },
-  dropping: function dropping(limit) {
-    return ringBuffer(limit, ON_OVERFLOW_DROP);
-  },
-  sliding: function sliding(limit) {
-    return ringBuffer(limit, ON_OVERFLOW_SLIDE);
-  },
-  expanding: function expanding(initialSize) {
-    return ringBuffer(initialSize, ON_OVERFLOW_EXPAND);
-  }
-};
-
-var CHANNEL_END_TYPE = '@@redux-saga/CHANNEL_END';
-var END = { type: CHANNEL_END_TYPE };
-
-function takeEvery(patternOrChannel, worker) {
-  for (var _len = arguments.length, args = Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) {
-    args[_key - 2] = arguments[_key];
-  }
-
-  var yTake = { done: false, value: take(patternOrChannel) };
-  var yFork = function yFork(ac) {
-    return { done: false, value: fork.apply(undefined, [worker].concat(args, [ac])) };
-  };
-
-  var action = void 0,
-      setAction = function setAction(ac) {
-    return action = ac;
-  };
-
-  return fsmIterator({
-    q1: function q1() {
-      return ['q2', yTake, setAction];
-    },
-    q2: function q2() {
-      return action === END ? [qEnd] : ['q1', yFork(action)];
-    }
-  }, 'q1', 'takeEvery(' + safeName(patternOrChannel) + ', ' + worker.name + ')');
-}
-
-function takeLatest(patternOrChannel, worker) {
-  for (var _len = arguments.length, args = Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) {
-    args[_key - 2] = arguments[_key];
-  }
-
-  var yTake = { done: false, value: take(patternOrChannel) };
-  var yFork = function yFork(ac) {
-    return { done: false, value: fork.apply(undefined, [worker].concat(args, [ac])) };
-  };
-  var yCancel = function yCancel(task) {
-    return { done: false, value: cancel(task) };
-  };
-
-  var task = void 0,
-      action = void 0;
-  var setTask = function setTask(t) {
-    return task = t;
-  };
-  var setAction = function setAction(ac) {
-    return action = ac;
-  };
-
-  return fsmIterator({
-    q1: function q1() {
-      return ['q2', yTake, setAction];
-    },
-    q2: function q2() {
-      return action === END ? [qEnd] : task ? ['q3', yCancel(task)] : ['q1', yFork(action), setTask];
-    },
-    q3: function q3() {
-      return ['q1', yFork(action), setTask];
-    }
-  }, 'q1', 'takeLatest(' + safeName(patternOrChannel) + ', ' + worker.name + ')');
-}
-
-function throttle(delayLength, pattern, worker) {
-  for (var _len = arguments.length, args = Array(_len > 3 ? _len - 3 : 0), _key = 3; _key < _len; _key++) {
-    args[_key - 3] = arguments[_key];
-  }
-
-  var action = void 0,
-      channel$$1 = void 0;
-
-  var yActionChannel = { done: false, value: actionChannel(pattern, buffers.sliding(1)) };
-  var yTake = function yTake() {
-    return { done: false, value: take(channel$$1) };
-  };
-  var yFork = function yFork(ac) {
-    return { done: false, value: fork.apply(undefined, [worker].concat(args, [ac])) };
-  };
-  var yDelay = { done: false, value: call(delay, delayLength) };
-
-  var setAction = function setAction(ac) {
-    return action = ac;
-  };
-  var setChannel = function setChannel(ch) {
-    return channel$$1 = ch;
-  };
-
-  return fsmIterator({
-    q1: function q1() {
-      return ['q2', yActionChannel, setChannel];
-    },
-    q2: function q2() {
-      return ['q3', yTake(), setAction];
-    },
-    q3: function q3() {
-      return action === END ? [qEnd] : ['q4', yFork(action)];
-    },
-    q4: function q4() {
-      return ['q2', yDelay];
-    }
-  }, 'q1', 'throttle(' + safeName(pattern) + ', ' + worker.name + ')');
-}
-
-function takeEvery$2(patternOrChannel, worker) {
-  for (var _len = arguments.length, args = Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) {
-    args[_key - 2] = arguments[_key];
-  }
-
-  return fork.apply(undefined, [takeEvery, patternOrChannel, worker].concat(args));
-}
-
-function takeLatest$2(patternOrChannel, worker) {
-  for (var _len2 = arguments.length, args = Array(_len2 > 2 ? _len2 - 2 : 0), _key2 = 2; _key2 < _len2; _key2++) {
-    args[_key2 - 2] = arguments[_key2];
-  }
-
-  return fork.apply(undefined, [takeLatest, patternOrChannel, worker].concat(args));
-}
-
-function throttle$2(ms, pattern, worker) {
-  for (var _len3 = arguments.length, args = Array(_len3 > 3 ? _len3 - 3 : 0), _key3 = 3; _key3 < _len3; _key3++) {
-    args[_key3 - 3] = arguments[_key3];
-  }
-
-  return fork.apply(undefined, [throttle, ms, pattern, worker].concat(args));
-}
-
-
-
-var sagaEffects = /*#__PURE__*/Object.freeze({
-take: take,
-takem: takem,
-put: put,
-all: all,
-race: race,
-call: call,
-apply: apply,
-cps: cps,
-fork: fork,
-spawn: spawn,
-join: join,
-cancel: cancel,
-select: select,
-actionChannel: actionChannel,
-cancelled: cancelled,
-flush: flush,
-getContext: getContext,
-setContext: setContext,
-takeEvery: takeEvery$2,
-takeLatest: takeLatest$2,
-throttle: throttle$2
-});
-
 function prefixType(type, model) {
   var prefixedType = "" + model.namespace + NAMESPACE_SEP + type;
   var typeWithoutAffix = prefixedType.replace(/\/@@[^/]+?$/, '');
@@ -1928,10 +1235,11 @@ function prefixType(type, model) {
   return type;
 }
 
-var takeEvery$3 = takeEvery$2,
-    takeLatest$3 = takeLatest$2,
-    throttle$3 = throttle$2;
-function getSaga(effects, model, onError, onEffect) {
+function getSaga(effects, model, onError, onEffect, opts) {
+  if (opts === void 0) {
+    opts = {};
+  }
+
   return (
     /*#__PURE__*/
     regenerator.mark(function _callee3() {
@@ -1963,14 +1271,14 @@ function getSaga(effects, model, onError, onEffect) {
                   while (1) {
                     switch (_context2.prev = _context2.next) {
                       case 0:
-                        watcher = getWatcher(key, effects[key], model, onError, onEffect);
+                        watcher = getWatcher(key, effects[key], model, onError, onEffect, opts);
                         _context2.next = 3;
-                        return fork(watcher);
+                        return createSagaMiddleware.effects.fork(watcher);
 
                       case 3:
                         task = _context2.sent;
                         _context2.next = 6;
-                        return fork(
+                        return createSagaMiddleware.effects.fork(
                         /*#__PURE__*/
                         regenerator.mark(function _callee() {
                           return regenerator.wrap(function _callee$(_context) {
@@ -1978,11 +1286,11 @@ function getSaga(effects, model, onError, onEffect) {
                               switch (_context.prev = _context.next) {
                                 case 0:
                                   _context.next = 2;
-                                  return take(model.namespace + "/@@CANCEL_EFFECTS");
+                                  return createSagaMiddleware.effects.take(model.namespace + "/@@CANCEL_EFFECTS");
 
                                 case 2:
                                   _context.next = 4;
-                                  return cancel(task);
+                                  return createSagaMiddleware.effects.cancel(task);
 
                                 case 4:
                                 case "end":
@@ -2014,29 +1322,35 @@ function getSaga(effects, model, onError, onEffect) {
   );
 }
 
-function getWatcher(key, _effect, model, onError, onEffect) {
+function getWatcher(key, _effect, model, onError, onEffect, opts) {
   var _marked =
   /*#__PURE__*/
   regenerator.mark(sagaWithCatch);
 
   var effect = _effect;
-  var type = "takeEvery";
+  var type = 'takeEvery';
   var ms;
+  var delayMs;
 
   if (Array.isArray(_effect)) {
     effect = _effect[0];
-    var opts = _effect[1];
+    var _opts = _effect[1];
 
-    if (opts && opts.type) {
-      type = opts.type;
+    if (_opts && _opts.type) {
+      type = _opts.type;
 
-      if (type === "throttle") {
-        invariant_1(opts.ms, "app.start: opts.ms should be defined if type is throttle");
-        ms = opts.ms;
+      if (type === 'throttle') {
+        invariant_1(_opts.ms, 'app.start: opts.ms should be defined if type is throttle');
+        ms = _opts.ms;
+      }
+
+      if (type === 'poll') {
+        invariant_1(_opts.delay, 'app.start: opts.delay should be defined if type is poll');
+        delayMs = _opts.delay;
       }
     }
 
-    invariant_1(["watcher", "takeEvery", "takeLatest", "throttle"].indexOf(type) > -1, "app.start: effect type should be takeEvery, takeLatest, throttle or watcher");
+    invariant_1(['watcher', 'takeEvery', 'takeLatest', 'throttle', 'poll'].indexOf(type) > -1, 'app.start: effect type should be takeEvery, takeLatest, throttle, poll or watcher');
   }
 
   function noop() {}
@@ -2064,18 +1378,18 @@ function getWatcher(key, _effect, model, onError, onEffect) {
             _ref = args.length > 0 ? args[0] : {}, _ref$__dva_resolve = _ref.__dva_resolve, resolve = _ref$__dva_resolve === void 0 ? noop : _ref$__dva_resolve, _ref$__dva_reject = _ref.__dva_reject, reject = _ref$__dva_reject === void 0 ? noop : _ref$__dva_reject;
             _context4.prev = 2;
             _context4.next = 5;
-            return put({
+            return createSagaMiddleware.effects.put({
               type: "" + key + NAMESPACE_SEP + "@@start"
             });
 
           case 5:
             _context4.next = 7;
-            return effect.apply(void 0, args.concat(createEffects(model)));
+            return effect.apply(void 0, args.concat(createEffects(model, opts)));
 
           case 7:
             ret = _context4.sent;
             _context4.next = 10;
-            return put({
+            return createSagaMiddleware.effects.put({
               type: "" + key + NAMESPACE_SEP + "@@end"
             });
 
@@ -2107,10 +1421,10 @@ function getWatcher(key, _effect, model, onError, onEffect) {
   var sagaWithOnEffect = applyOnEffect(onEffect, sagaWithCatch, model, key);
 
   switch (type) {
-    case "watcher":
+    case 'watcher':
       return sagaWithCatch;
 
-    case "takeLatest":
+    case 'takeLatest':
       return (
         /*#__PURE__*/
         regenerator.mark(function _callee4() {
@@ -2119,7 +1433,7 @@ function getWatcher(key, _effect, model, onError, onEffect) {
               switch (_context5.prev = _context5.next) {
                 case 0:
                   _context5.next = 2;
-                  return takeLatest$3(key, sagaWithOnEffect);
+                  return createSagaMiddleware.effects.takeLatest(key, sagaWithOnEffect);
 
                 case 2:
                 case "end":
@@ -2130,7 +1444,7 @@ function getWatcher(key, _effect, model, onError, onEffect) {
         })
       );
 
-    case "throttle":
+    case 'throttle':
       return (
         /*#__PURE__*/
         regenerator.mark(function _callee5() {
@@ -2139,7 +1453,7 @@ function getWatcher(key, _effect, model, onError, onEffect) {
               switch (_context6.prev = _context6.next) {
                 case 0:
                   _context6.next = 2;
-                  return throttle$3(ms, key, sagaWithOnEffect);
+                  return createSagaMiddleware.effects.throttle(ms, key, sagaWithOnEffect);
 
                 case 2:
                 case "end":
@@ -2150,37 +1464,116 @@ function getWatcher(key, _effect, model, onError, onEffect) {
         })
       );
 
-    default:
+    case 'poll':
       return (
         /*#__PURE__*/
         regenerator.mark(function _callee6() {
-          return regenerator.wrap(function _callee6$(_context7) {
-            while (1) {
-              switch (_context7.prev = _context7.next) {
-                case 0:
-                  _context7.next = 2;
-                  return takeEvery$3(key, sagaWithOnEffect);
+          var _marked2, delay, pollSagaWorker, call, take, race, action;
 
-                case 2:
+          return regenerator.wrap(function _callee6$(_context8) {
+            while (1) {
+              switch (_context8.prev = _context8.next) {
+                case 0:
+                  pollSagaWorker = function _ref3(sagaEffects, action) {
+                    var call;
+                    return regenerator.wrap(function pollSagaWorker$(_context7) {
+                      while (1) {
+                        switch (_context7.prev = _context7.next) {
+                          case 0:
+                            call = sagaEffects.call;
+
+                          case 1:
+
+                            _context7.next = 4;
+                            return call(sagaWithOnEffect, action);
+
+                          case 4:
+                            _context7.next = 6;
+                            return call(delay, delayMs);
+
+                          case 6:
+                            _context7.next = 1;
+                            break;
+
+                          case 8:
+                          case "end":
+                            return _context7.stop();
+                        }
+                      }
+                    }, _marked2, this);
+                  };
+
+                  delay = function _ref2(timeout) {
+                    return new Promise(function (resolve) {
+                      return setTimeout(resolve, timeout);
+                    });
+                  };
+
+                  _marked2 =
+                  /*#__PURE__*/
+                  regenerator.mark(pollSagaWorker);
+                  call = createSagaMiddleware.effects.call, take = createSagaMiddleware.effects.take, race = createSagaMiddleware.effects.race;
+
+                case 4:
+
+                  _context8.next = 7;
+                  return take(key + "-start");
+
+                case 7:
+                  action = _context8.sent;
+                  _context8.next = 10;
+                  return race([call(pollSagaWorker, createSagaMiddleware.effects, action), take(key + "-stop")]);
+
+                case 10:
+                  _context8.next = 4;
+                  break;
+
+                case 12:
                 case "end":
-                  return _context7.stop();
+                  return _context8.stop();
               }
             }
           }, _callee6, this);
         })
       );
+
+    default:
+      return (
+        /*#__PURE__*/
+        regenerator.mark(function _callee7() {
+          return regenerator.wrap(function _callee7$(_context9) {
+            while (1) {
+              switch (_context9.prev = _context9.next) {
+                case 0:
+                  _context9.next = 2;
+                  return createSagaMiddleware.effects.takeEvery(key, sagaWithOnEffect);
+
+                case 2:
+                case "end":
+                  return _context9.stop();
+              }
+            }
+          }, _callee7, this);
+        })
+      );
   }
 }
 
-function createEffects(model) {
+function createEffects(model, opts) {
   function assertAction(type, name) {
-    invariant_1(type, "dispatch: action should be a plain Object with type");
+    invariant_1(type, 'dispatch: action should be a plain Object with type');
+    var _opts$namespacePrefix = opts.namespacePrefixWarning,
+        namespacePrefixWarning = _opts$namespacePrefix === void 0 ? true : _opts$namespacePrefix;
+
+    if (namespacePrefixWarning) {
+      warning_1(type.indexOf("" + model.namespace + NAMESPACE_SEP) !== 0, "[" + name + "] " + type + " should not be prefixed with namespace " + model.namespace);
+    }
   }
 
-  function put$$1(action) {
+  function put(action) {
     var type = action.type;
-    assertAction(type, "sagaEffects.put");
-    return put(objectSpread({}, action, {
+    assertAction(type, 'sagaEffects.put');
+    return createSagaMiddleware.effects.put(objectSpread({}, action, {
       type: prefixType(type, model)
     }));
   } // The operator `put` doesn't block waiting the returned promise to resolve.
@@ -2192,53 +1585,53 @@ function createEffects(model) {
 
   function putResolve(action) {
     var type = action.type;
-    assertAction(type, "sagaEffects.put.resolve");
-    return put.resolve(objectSpread({}, action, {
+    assertAction(type, 'sagaEffects.put.resolve');
+    return createSagaMiddleware.effects.put.resolve(objectSpread({}, action, {
       type: prefixType(type, model)
     }));
   }
 
-  put$$1.resolve = putResolve;
+  put.resolve = putResolve;
 
-  function take$$1(type) {
-    if (typeof type === "string") {
-      assertAction(type, "sagaEffects.take");
-      return take(prefixType(type, model));
+  function take(type) {
+    if (typeof type === 'string') {
+      assertAction(type, 'sagaEffects.take');
+      return createSagaMiddleware.effects.take(prefixType(type, model));
     } else if (Array.isArray(type)) {
-      return take(type.map(function (t) {
-        if (typeof t === "string") {
-          assertAction(t, "sagaEffects.take");
+      return createSagaMiddleware.effects.take(type.map(function (t) {
+        if (typeof t === 'string') {
+          assertAction(t, 'sagaEffects.take');
           return prefixType(t, model);
         }
 
         return t;
       }));
     } else {
-      return take(type);
+      return createSagaMiddleware.effects.take(type);
     }
   }
 
-  return objectSpread({}, sagaEffects, {
-    put: put$$1,
-    take: take$$1
+  return objectSpread({}, createSagaMiddleware.effects, {
+    put: put,
+    take: take
   });
 }
 
 function applyOnEffect(fns, effect, model, key) {
   for (var _iterator = fns, _isArray = Array.isArray(_iterator), _i = 0, _iterator = _isArray ? _iterator : _iterator[Symbol.iterator]();;) {
-    var _ref2;
+    var _ref4;
 
     if (_isArray) {
       if (_i >= _iterator.length) break;
-      _ref2 = _iterator[_i++];
+      _ref4 = _iterator[_i++];
     } else {
       _i = _iterator.next();
       if (_i.done) break;
-      _ref2 = _i.value;
+      _ref4 = _i.value;
     }
 
-    var fn = _ref2;
-    effect = fn(effect, sagaEffects, model, key);
+    var fn = _ref4;
+    effect = fn(effect, createSagaMiddleware.effects, model, key);
   }
 
   return effect;
@@ -2403,8 +1796,11 @@ function unlisten(unlisteners, namespace) {
   delete unlisteners[namespace];
 }
 
+var noop$1 = noop,
+    findIndex$1 = findIndex; // Internal model to update global state when do unmodel
+
 var dvaModel = {
-  namespace: "@@dva",
+  namespace: '@@dva',
   state: 0,
   reducers: {
     UPDATE: function UPDATE(state) {
@@ -2431,7 +1827,7 @@ function create(hooksAndOpts, createOpts) {
   var _createOpts = createOpts,
       initialReducer = _createOpts.initialReducer,
       _createOpts$setupApp = _createOpts.setupApp,
-      setupApp = _createOpts$setupApp === void 0 ? noop : _createOpts$setupApp;
+      setupApp = _createOpts$setupApp === void 0 ? noop$1 : _createOpts$setupApp;
   var plugin = new Plugin();
   plugin.use(filterHooks(hooksAndOpts));
   var app = {
@@ -2477,7 +1873,7 @@ function create(hooksAndOpts, createOpts) {
     store.replaceReducer(createReducer());
 
     if (m.effects) {
-      store.runSaga(app._getSaga(m.effects, m, onError, plugin.get("onEffect")));
+      store.runSaga(app._getSaga(m.effects, m, onError, plugin.get('onEffect'), hooksAndOpts));
     }
 
     if (m.subscriptions) {
@@ -2504,7 +1900,7 @@ function create(hooksAndOpts, createOpts) {
     delete reducers[namespace];
     store.replaceReducer(createReducer());
     store.dispatch({
-      type: "@@dva/UPDATE"
+      type: '@@dva/UPDATE'
     }); // Cancel effects
 
     store.dispatch({
@@ -2534,7 +1930,7 @@ function create(hooksAndOpts, createOpts) {
   function replaceModel(createReducer, reducers, unlisteners, onError, m) {
     var store = app._store;
     var namespace = m.namespace;
-    var oldModelIdx = findIndex(app._models, function (model) {
+    var oldModelIdx = findIndex$1(app._models, function (model) {
       return model.namespace === namespace;
     });
 
@@ -2555,7 +1951,7 @@ function create(hooksAndOpts, createOpts) {
 
     app.model(m);
     store.dispatch({
-      type: "@@dva/UPDATE"
+      type: '@@dva/UPDATE'
     });
   }
   /**
@@ -2569,19 +1965,19 @@ function create(hooksAndOpts, createOpts) {
     // Global error handler
     var onError = function onError(err, extension) {
       if (err) {
-        if (typeof err === "string") err = new Error(err);
+        if (typeof err === 'string') err = new Error(err);
 
         err.preventDefault = function () {
           err._dontReject = true;
         };
 
-        plugin.apply("onError", function (err) {
+        plugin.apply('onError', function (err) {
           throw new Error(err.stack || err);
         })(err, app._store.dispatch, extension);
       }
     };
 
-    var sagaMiddleware = createSagaMiddleware();
+    var sagaMiddleware = createSagaMiddleware__default();
     var promiseMiddleware = createPromiseMiddleware(app);
     app._getSaga = getSaga.bind(null);
     var sagas = [];
@@ -2602,29 +1998,32 @@ function create(hooksAndOpts, createOpts) {
 
       var m = _ref;
       reducers[m.namespace] = getReducer(m.reducers, m.state, plugin._handleActions);
-      if (m.effects) sagas.push(app._getSaga(m.effects, m, onError, plugin.get("onEffect")));
+
+      if (m.effects) {
+        sagas.push(app._getSaga(m.effects, m, onError, plugin.get('onEffect'), hooksAndOpts));
+      }
     }
 
-    var reducerEnhancer = plugin.get("onReducer");
-    var extraReducers = plugin.get("extraReducers");
+    var reducerEnhancer = plugin.get('onReducer');
+    var extraReducers = plugin.get('extraReducers');
     invariant_1(Object.keys(extraReducers).every(function (key) {
       return !(key in reducers);
-    }), "[app.start] extraReducers is conflict with other reducers, reducers list: " + Object.keys(reducers).join(", ")); // Create store
+    }), "[app.start] extraReducers is conflict with other reducers, reducers list: " + Object.keys(reducers).join(', ')); // Create store
 
-    var store = app._store = createStore({
-      // eslint-disable-line
+    app._store = createStore({
       reducers: createReducer(),
       initialState: hooksAndOpts.initialState || {},
       plugin: plugin,
       createOpts: createOpts,
       sagaMiddleware: sagaMiddleware,
       promiseMiddleware: promiseMiddleware
-    }); // Extend store
+    });
+    var store = app._store; // Extend store
 
     store.runSaga = sagaMiddleware.run;
     store.asyncReducers = {}; // Execute listeners when state is changed
 
-    var listeners = plugin.get("onStateChange");
+    var listeners = plugin.get('onStateChange');
 
     var _loop = function _loop() {
       if (_isArray2) {
@@ -2692,7 +2091,9 @@ function create(hooksAndOpts, createOpts) {
   }
 }
 
+exports.saga = createSagaMiddleware;
 exports.create = create;
+exports.utils = utils;
 
 Object.defineProperty(exports, '__esModule', { value: true });
 

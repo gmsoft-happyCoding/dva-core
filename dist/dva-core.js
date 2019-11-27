@@ -1328,7 +1328,7 @@ function getWatcher(key, _effect, model, onError, onEffect, opts) {
   regenerator.mark(sagaWithCatch);
 
   var effect = _effect;
-  var type = 'takeEvery';
+  var type = "takeEvery";
   var ms;
   var delayMs;
 
@@ -1339,18 +1339,18 @@ function getWatcher(key, _effect, model, onError, onEffect, opts) {
     if (_opts && _opts.type) {
       type = _opts.type;
 
-      if (type === 'throttle') {
-        invariant_1(_opts.ms, 'app.start: opts.ms should be defined if type is throttle');
+      if (type === "throttle") {
+        invariant_1(_opts.ms, "app.start: opts.ms should be defined if type is throttle");
         ms = _opts.ms;
       }
 
-      if (type === 'poll') {
-        invariant_1(_opts.delay, 'app.start: opts.delay should be defined if type is poll');
+      if (type === "poll") {
+        invariant_1(_opts.delay, "app.start: opts.delay should be defined if type is poll");
         delayMs = _opts.delay;
       }
     }
 
-    invariant_1(['watcher', 'takeEvery', 'takeLatest', 'throttle', 'poll'].indexOf(type) > -1, 'app.start: effect type should be takeEvery, takeLatest, throttle, poll or watcher');
+    invariant_1(["watcher", "takeEvery", "takeLatest", "throttle", "poll"].indexOf(type) > -1, "app.start: effect type should be takeEvery, takeLatest, throttle, poll or watcher");
   }
 
   function noop() {}
@@ -1421,10 +1421,10 @@ function getWatcher(key, _effect, model, onError, onEffect, opts) {
   var sagaWithOnEffect = applyOnEffect(onEffect, sagaWithCatch, model, key);
 
   switch (type) {
-    case 'watcher':
+    case "watcher":
       return sagaWithCatch;
 
-    case 'takeLatest':
+    case "takeLatest":
       return (
         /*#__PURE__*/
         regenerator.mark(function _callee4() {
@@ -1444,7 +1444,7 @@ function getWatcher(key, _effect, model, onError, onEffect, opts) {
         })
       );
 
-    case 'throttle':
+    case "throttle":
       return (
         /*#__PURE__*/
         regenerator.mark(function _callee5() {
@@ -1464,7 +1464,7 @@ function getWatcher(key, _effect, model, onError, onEffect, opts) {
         })
       );
 
-    case 'poll':
+    case "poll":
       return (
         /*#__PURE__*/
         regenerator.mark(function _callee6() {
@@ -1561,9 +1561,9 @@ function getWatcher(key, _effect, model, onError, onEffect, opts) {
 
 function createEffects(model, opts) {
   function assertAction(type, name) {
-    invariant_1(type, 'dispatch: action should be a plain Object with type');
+    invariant_1(type, "dispatch: action should be a plain Object with type");
     var _opts$namespacePrefix = opts.namespacePrefixWarning,
-        namespacePrefixWarning = _opts$namespacePrefix === void 0 ? true : _opts$namespacePrefix;
+        namespacePrefixWarning = _opts$namespacePrefix === void 0 ? false : _opts$namespacePrefix;
 
     if (namespacePrefixWarning) {
       warning_1(type.indexOf("" + model.namespace + NAMESPACE_SEP) !== 0, "[" + name + "] " + type + " should not be prefixed with namespace " + model.namespace);
@@ -1572,7 +1572,7 @@ function createEffects(model, opts) {
 
   function put(action) {
     var type = action.type;
-    assertAction(type, 'sagaEffects.put');
+    assertAction(type, "sagaEffects.put");
     return createSagaMiddleware.effects.put(objectSpread({}, action, {
       type: prefixType(type, model)
     }));
@@ -1585,7 +1585,7 @@ function createEffects(model, opts) {
 
   function putResolve(action) {
     var type = action.type;
-    assertAction(type, 'sagaEffects.put.resolve');
+    assertAction(type, "sagaEffects.put.resolve");
     return createSagaMiddleware.effects.put.resolve(objectSpread({}, action, {
       type: prefixType(type, model)
     }));
@@ -1594,13 +1594,13 @@ function createEffects(model, opts) {
   put.resolve = putResolve;
 
   function take(type) {
-    if (typeof type === 'string') {
-      assertAction(type, 'sagaEffects.take');
+    if (typeof type === "string") {
+      assertAction(type, "sagaEffects.take");
       return createSagaMiddleware.effects.take(prefixType(type, model));
     } else if (Array.isArray(type)) {
       return createSagaMiddleware.effects.take(type.map(function (t) {
-        if (typeof t === 'string') {
-          assertAction(t, 'sagaEffects.take');
+        if (typeof t === "string") {
+          assertAction(t, "sagaEffects.take");
           return prefixType(t, model);
         }
 
